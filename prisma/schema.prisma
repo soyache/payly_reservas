@@ -1,0 +1,255 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AppointmentStatus {
+  pending_payment
+  pending_approval
+  confirmed
+  completed
+  cancelled
+  expired
+  no_show
+}
+
+enum ConversationStep {
+  greeting
+  select_service
+  select_date
+  select_time
+  confirm_booking
+  awaiting_payment
+  awaiting_approval
+  completed
+}
+
+enum TemplateCategory {
+  utility
+  marketing
+  authentication
+}
+
+enum TemplateStatus {
+  pending
+  approved
+  rejected
+}
+
+enum OutboundMessageType {
+  text
+  interactive
+  template
+}
+
+enum OutboundMessageStatus {
+  queued
+  sending
+  sent
+  failed
+  dead_letter
+}
+
+enum AdminAction {
+  approve_appointment
+  reject_appointment
+  delete_payment_proof
+}
+
+model Business {
+  id                 String             @id @default(uuid())
+  name               String
+  timezone           String             @default("America/Tegucigalpa")
+  phoneNumber        String             @map("phone_number")
+  wabaId             String             @map("waba_id")
+  phoneNumberId      String             @unique @map("phone_number_id")
+  ownerName          String?            @map("owner_name")
+  ownerPhone         String?            @map("owner_phone")
+  ownerPhoneNumberId String?            @map("owner_phone_number_id")
+  bankAccounts       Json?              @map("bank_accounts")
+  workingDays        Json?              @map("working_days")
+  address            String?
+  isActive           Boolean            @default(true) @map("is_active")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  services               Service[]
+  timeSlots              TimeSlot[]
+  appointments           Appointment[]
+  conversations          Conversation[]
+  messageTemplates       MessageTemplate[]
+  processedWebhookEvents ProcessedWebhookEvent[]
+  outboundMessages       OutboundMessage[]
+  adminAuditLogs         AdminAuditLog[]
+
+  @@index([isActive], map: "idx_businesses_is_active")
+  @@map("businesses")
+}
+
+model Service {
+  id              String    @id @default(uuid())
+  businessId      String    @map("business_id")
+  name            String
+  durationMinutes Int       @map("duration_minutes")
+  price           Decimal   @db.Decimal(10, 2)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@index([businessId, isActive], map: "idx_services_business_active")
+  @@map("services")
+}
+
+model TimeSlot {
+  id              String   @id @default(uuid())
+  businessId      String   @map("business_id")
+  dayOfWeek       Int      @map("day_of_week")
+  startTime       String   @map("start_time")
+  endTime         String   @map("end_time")
+  maxAppointments Int      @default(1) @map("max_appointments")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+
+  @@index([businessId, dayOfWeek, isActive], map: "idx_time_slots_business_day_active")
+  @@map("time_slots")
+}
+
+model Appointment {
+  id                    String            @id @default(uuid())
+  businessId            String            @map("business_id")
+  serviceId             String            @map("service_id")
+  clientPhone           String            @map("client_phone")
+  clientPhoneE164       String            @map("client_phone_e164")
+  clientName            String?           @map("client_name")
+  date                  DateTime          @db.Date
+  timeSlotId            String            @map("time_slot_id")
+  status                AppointmentStatus
+  paymentProofUrl       String?           @map("payment_proof_url")
+  paymentProofExpiresAt DateTime?         @map("payment_proof_expires_at")
+  paymentProofReportedAt DateTime?        @map("payment_proof_reported_at")
+  reminder24hSent       Boolean           @default(false) @map("reminder_24h_sent")
+  reminder1hSent        Boolean           @default(false) @map("reminder_1h_sent")
+  expiresAt             DateTime?         @map("expires_at")
+  approvedAt            DateTime?         @map("approved_at")
+  approvedBy            String?           @map("approved_by")
+  rejectedAt            DateTime?         @map("rejected_at")
+  rejectedBy            String?           @map("rejected_by")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service          Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  timeSlot         TimeSlot          @relation(fields: [timeSlotId], references: [id], onDelete: Restrict)
+  outboundMessages OutboundMessage[]
+
+  @@index([businessId, date, timeSlotId], map: "idx_appointments_slot_lookup")
+  @@index([businessId, clientPhoneE164], map: "idx_appointments_client_e164")
+  @@index([businessId, status], map: "idx_appointments_status")
+  @@index([expiresAt], map: "idx_appointments_expires_at")
+  @@map("appointments")
+}
+
+model Conversation {
+  id                     String           @id @default(uuid())
+  businessId             String           @map("business_id")
+  clientPhone            String           @map("client_phone")
+  clientPhoneE164        String           @map("client_phone_e164")
+  currentStep            ConversationStep @default(greeting) @map("current_step")
+  tempData               Json?            @map("temp_data")
+  lastMessageAt          DateTime         @default(now()) @map("last_message_at")
+  serviceWindowExpiresAt DateTime?        @map("service_window_expires_at")
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @updatedAt @map("updated_at")
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, clientPhoneE164], map: "uq_conversations_business_client_e164")
+  @@index([businessId, currentStep], map: "idx_conversations_business_step")
+  @@index([lastMessageAt], map: "idx_conversations_last_message_at")
+  @@map("conversations")
+}
+
+model MessageTemplate {
+  id           String           @id @default(uuid())
+  businessId   String?          @map("business_id")
+  templateName String           @map("template_name")
+  category     TemplateCategory
+  language     String           @default("es")
+  status       TemplateStatus   @default(pending)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, templateName, language], map: "uq_message_templates_scope_name_lang")
+  @@index([status], map: "idx_message_templates_status")
+  @@map("message_templates")
+}
+
+model ProcessedWebhookEvent {
+  id          String   @id @default(uuid())
+  businessId  String   @map("business_id")
+  eventKey    String   @map("event_key")
+  payloadHash String?  @map("payload_hash")
+  processedAt DateTime @default(now()) @map("processed_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, eventKey], map: "uq_processed_events_business_event_key")
+  @@index([processedAt], map: "idx_processed_events_processed_at")
+  @@map("processed_webhook_events")
+}
+
+model OutboundMessage {
+  id             String                @id @default(uuid())
+  businessId     String                @map("business_id")
+  appointmentId  String?               @map("appointment_id")
+  toPhoneE164    String                @map("to_phone_e164")
+  messageType    OutboundMessageType   @map("message_type")
+  payloadJson    Json                  @map("payload_json")
+  idempotencyKey String                @unique @map("idempotency_key")
+  status         OutboundMessageStatus @default(queued)
+  attemptCount   Int                   @default(0) @map("attempt_count")
+  nextRetryAt    DateTime?             @map("next_retry_at")
+  metaMessageId  String?               @map("meta_message_id")
+  lastError      String?               @map("last_error")
+  sentAt         DateTime?             @map("sent_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+
+  business    Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  appointment Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextRetryAt], map: "idx_outbound_status_next_retry")
+  @@index([businessId, createdAt], map: "idx_outbound_business_created_at")
+  @@map("outbound_messages")
+}
+
+model AdminAuditLog {
+  id           String      @id @default(uuid())
+  businessId   String      @map("business_id")
+  action       AdminAction
+  actor        String
+  actorIp      String?     @map("actor_ip")
+  targetId     String?     @map("target_id")
+  metadataJson Json?       @map("metadata_json")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, createdAt], map: "idx_admin_audit_business_created_at")
+  @@index([action], map: "idx_admin_audit_action")
+  @@map("admin_audit_log")
+}
