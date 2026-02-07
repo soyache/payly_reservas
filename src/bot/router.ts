@@ -9,16 +9,18 @@ export async function handleIncomingMessage(
   msg: ParsedMessage
 ): Promise<void> {
   // 1. Look up business by phoneNumberId
+  console.log(`[Router] Looking up business for phoneNumberId: ${msg.phoneNumberId}`);
   const business = await prisma.business.findUnique({
     where: { phoneNumberId: msg.phoneNumberId },
   });
 
   if (!business || !business.isActive) {
     console.warn(
-      `No active business for phoneNumberId: ${msg.phoneNumberId}`
+      `[Router] No active business for phoneNumberId: ${msg.phoneNumberId}`
     );
     return;
   }
+  console.log(`[Router] Business found: ${business.name} (id: ${business.id})`);
 
   // 2. Idempotency check
   const eventKey = msg.messageId;
@@ -88,7 +90,9 @@ export async function handleIncomingMessage(
   const currentStep = isTimedOut ? "greeting" : conversation.currentStep;
 
   // 9. Run state machine
+  console.log(`[Router] Dispatching step: ${currentStep}, content type: ${msg.content.type}`);
   const result = await dispatch(business, conversation, currentStep, msg.content);
+  console.log(`[Router] Step result: nextStep=${result.nextStep}, messages=${result.messages.length}`);
 
   // 10. Merge tempData
   const existingTemp =
@@ -138,5 +142,6 @@ export async function handleIncomingMessage(
   // 13. Enqueue outbound messages from the original step
   if (result.messages.length > 0) {
     await enqueueMessages(business.id, result.messages);
+    console.log(`[Router] Enqueued ${result.messages.length} outbound message(s)`);
   }
 }

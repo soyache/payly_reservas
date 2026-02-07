@@ -60,13 +60,15 @@ export async function handleAwaitingPayment(
     // Notify business owner if configured
     const adminNotifications: QueuedMessage[] = [];
     if (business.ownerPhone) {
+      const ownerPhoneE164 = business.ownerPhone.startsWith("+")
+        ? business.ownerPhone
+        : `+${business.ownerPhone}`;
+
       adminNotifications.push({
-        toPhoneE164: business.ownerPhone.startsWith("+")
-          ? business.ownerPhone
-          : `+${business.ownerPhone}`,
+        toPhoneE164: ownerPhoneE164,
         appointmentId,
         payload: buildTextMessage(
-          business.ownerPhone,
+          ownerPhoneE164,
           `Nueva reserva pendiente de aprobacion.\n` +
             `Cliente: ${conversation.clientPhoneE164}\n` +
             `Cita ID: ${appointmentId}\n\n` +

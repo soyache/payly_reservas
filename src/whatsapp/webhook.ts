@@ -70,18 +70,21 @@ webhookRouter.post("/webhook/whatsapp", (req, res) => {
 
   // 3. Process events asynchronously
   const events = parseWebhookPayload(req.body);
+  console.log(`[Webhook] Parsed ${events.length} event(s): ${events.map(e => e.kind).join(", ")}`);
 
   for (const event of events) {
     if (event.kind === "message") {
+      console.log(`[Webhook] Message from ${event.data.from}, type: ${event.data.content.type}, phoneNumberId: ${event.data.phoneNumberId}`);
       handleIncomingMessage(event.data).catch((err) => {
-        console.error("Error processing inbound message:", err);
+        console.error("[Webhook] Error processing inbound message:", err);
       });
     }
 
     if (event.kind === "status") {
+      console.log(`[Webhook] Status update: ${event.data.status} for msgId: ${event.data.messageId}`);
       handleStatusUpdate(event.data.messageId, event.data.status).catch(
         (err) => {
-          console.error("Error processing status update:", err);
+          console.error("[Webhook] Error processing status update:", err);
         }
       );
     }

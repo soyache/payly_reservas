@@ -1,10 +1,34 @@
 import { prisma } from "../database/prisma";
 import { sendMessage } from "../whatsapp/graphApi";
+import axios from "axios";
 import type { MetaOutboundPayload } from "../whatsapp/types";
 
 const MAX_ATTEMPTS = 5;
 const BACKOFF_DELAYS_MS = [15_000, 45_000, 120_000, 360_000, 900_000];
 const BATCH_SIZE = 10;
+
+function serializeOutboundError(err: unknown): Record<string, unknown> {
+  if (axios.isAxiosError(err)) {
+    return {
+      message: err.message,
+      code: err.code,
+      status: err.response?.status,
+      method: err.config?.method,
+      url: err.config?.url,
+      responseData: err.response?.data,
+    };
+  }
+
+  if (err instanceof Error) {
+    return {
+      message: err.message,
+      name: err.name,
+      stack: err.stack,
+    };
+  }
+
+  return { error: String(err) };
+}
 
 export async function processOutboundQueue(): Promise<void> {
   const now = new Date();
@@ -25,6 +49,10 @@ export async function processOutboundQueue(): Promise<void> {
     include: { business: true },
   });
 
+  if (messages.length > 0) {
+    console.log(`[OutboundWorker] Processing ${messages.length} queued message(s)`);
+  }
+
   for (const msg of messages) {
     try {
       await prisma.outboundMessage.update({
@@ -33,6 +61,7 @@ export async function processOutboundQueue(): Promise<void> {
       });
 
       const payload = msg.payloadJson as unknown as MetaOutboundPayload;
+      console.log(`[OutboundWorker] Sending message ${msg.id} to ${msg.toPhoneE164} via phoneNumberId ${msg.business.phoneNumberId}`);
       const result = await sendMessage(msg.business.phoneNumberId, payload);
 
       await prisma.outboundMessage.update({
@@ -43,10 +72,12 @@ export async function processOutboundQueue(): Promise<void> {
           sentAt: new Date(),
         },
       });
+      console.log(`[OutboundWorker] Message ${msg.id} sent OK (metaId: ${result.messageId})`);
     } catch (err: unknown) {
       const errorMsg =
         err instanceof Error ? err.message : "Unknown error";
       const newAttemptCount = msg.attemptCount + 1;
+      const errorDetails = serializeOutboundError(err);
 
       if (newAttemptCount >= MAX_ATTEMPTS) {
         await prisma.outboundMessage.update({
@@ -60,6 +91,12 @@ export async function processOutboundQueue(): Promise<void> {
         console.error(
           `Message ${msg.id} moved to dead_letter after ${MAX_ATTEMPTS} attempts: ${errorMsg}`
         );
+        console.error("[OutboundWorker] Send error details:", {
+          messageId: msg.id,
+          attempt: newAttemptCount,
+          maxAttempts: MAX_ATTEMPTS,
+          ...errorDetails,
+        });
       } else {
         const baseDelay =
           BACKOFF_DELAYS_MS[newAttemptCount - 1] ??
@@ -75,6 +112,13 @@ export async function processOutboundQueue(): Promise<void> {
             nextRetryAt,
             lastError: errorMsg,
           },
+        });
+        console.error("[OutboundWorker] Send failed, scheduling retry:", {
+          messageId: msg.id,
+          attempt: newAttemptCount,
+          maxAttempts: MAX_ATTEMPTS,
+          nextRetryAt: nextRetryAt.toISOString(),
+          ...errorDetails,
         });
       }
     }
