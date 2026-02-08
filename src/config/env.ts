@@ -12,6 +12,7 @@ type EnvConfig = {
   CONVERSATION_TIMEOUT_MINUTES: number;
   RESERVATION_EXPIRY_MINUTES: number;
   ADMIN_API_TOKEN: string;
+  ADMIN_NOTIFICATION_PHONE: string;
 };
 
 function getRequired(name: string): string {
@@ -43,5 +44,6 @@ export const env: EnvConfig = {
   UPLOAD_DIR: process.env.UPLOAD_DIR || "./uploads",
   CONVERSATION_TIMEOUT_MINUTES: getNumber("CONVERSATION_TIMEOUT_MINUTES", 30),
   RESERVATION_EXPIRY_MINUTES: getNumber("RESERVATION_EXPIRY_MINUTES", 30),
-  ADMIN_API_TOKEN: getRequired("ADMIN_API_TOKEN")
+  ADMIN_API_TOKEN: getRequired("ADMIN_API_TOKEN"),
+  ADMIN_NOTIFICATION_PHONE: getRequired("ADMIN_NOTIFICATION_PHONE"),
 };

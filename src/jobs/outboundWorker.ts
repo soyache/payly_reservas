@@ -6,6 +6,7 @@ import type { MetaOutboundPayload } from "../whatsapp/types";
 const MAX_ATTEMPTS = 5;
 const BACKOFF_DELAYS_MS = [15_000, 45_000, 120_000, 360_000, 900_000];
 const BATCH_SIZE = 10;
+const NON_RETRIABLE_WHATSAPP_ERROR_CODES = new Set([131030]);
 
 function serializeOutboundError(err: unknown): Record<string, unknown> {
   if (axios.isAxiosError(err)) {
@@ -28,6 +29,32 @@ function serializeOutboundError(err: unknown): Record<string, unknown> {
   }
 
   return { error: String(err) };
+}
+
+function getWhatsAppErrorCode(err: unknown): number | undefined {
+  if (!axios.isAxiosError(err)) return undefined;
+  const code = (err.response?.data as { error?: { code?: unknown } } | undefined)
+    ?.error?.code;
+  return typeof code === "number" ? code : undefined;
+}
+
+function shouldRetryOutboundError(err: unknown): boolean {
+  if (!axios.isAxiosError(err)) return true;
+
+  const whatsappCode = getWhatsAppErrorCode(err);
+  if (
+    whatsappCode !== undefined &&
+    NON_RETRIABLE_WHATSAPP_ERROR_CODES.has(whatsappCode)
+  ) {
+    return false;
+  }
+
+  const status = err.response?.status;
+  if (status === undefined) return true; // Network/timeout/etc
+  if (status === 429) return true;
+  if (status >= 500) return true;
+
+  return false; // Most 4xx errors are invalid requests and should not be retried
 }
 
 export async function processOutboundQueue(): Promise<void> {
@@ -76,10 +103,11 @@ export async function processOutboundQueue(): Promise<void> {
     } catch (err: unknown) {
       const errorMsg =
         err instanceof Error ? err.message : "Unknown error";
+      const canRetry = shouldRetryOutboundError(err);
       const newAttemptCount = msg.attemptCount + 1;
       const errorDetails = serializeOutboundError(err);
 
-      if (newAttemptCount >= MAX_ATTEMPTS) {
+      if (!canRetry || newAttemptCount >= MAX_ATTEMPTS) {
         await prisma.outboundMessage.update({
           where: { id: msg.id },
           data: {
@@ -89,7 +117,9 @@ export async function processOutboundQueue(): Promise<void> {
           },
         });
         console.error(
-          `Message ${msg.id} moved to dead_letter after ${MAX_ATTEMPTS} attempts: ${errorMsg}`
+          !canRetry
+            ? `Message ${msg.id} moved to dead_letter (non-retriable error): ${errorMsg}`
+            : `Message ${msg.id} moved to dead_letter after ${MAX_ATTEMPTS} attempts: ${errorMsg}`
         );
         console.error("[OutboundWorker] Send error details:", {
           messageId: msg.id,

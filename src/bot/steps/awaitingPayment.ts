@@ -7,6 +7,7 @@ import type {
 import { buildTextMessage } from "../../whatsapp/messageBuilder";
 import { downloadAndSavePaymentProof } from "../../whatsapp/mediaHandler";
 import { prisma } from "../../database/prisma";
+import { env } from "../../config/env";
 
 const PAYMENT_PROOF_RETENTION_DAYS = 90;
 
@@ -57,25 +58,19 @@ export async function handleAwaitingPayment(
       },
     });
 
-    // Notify business owner if configured
+    // Notify admin phone (test number allowed in Meta)
     const adminNotifications: QueuedMessage[] = [];
-    if (business.ownerPhone) {
-      const ownerPhoneE164 = business.ownerPhone.startsWith("+")
-        ? business.ownerPhone
-        : `+${business.ownerPhone}`;
-
-      adminNotifications.push({
-        toPhoneE164: ownerPhoneE164,
-        appointmentId,
-        payload: buildTextMessage(
-          ownerPhoneE164,
-          `Nueva reserva pendiente de aprobacion.\n` +
-            `Cliente: ${conversation.clientPhoneE164}\n` +
-            `Cita ID: ${appointmentId}\n\n` +
-            `Aprueba o rechaza desde el panel.`
-        ),
-      });
-    }
+    adminNotifications.push({
+      toPhoneE164: env.ADMIN_NOTIFICATION_PHONE,
+      appointmentId,
+      payload: buildTextMessage(
+        env.ADMIN_NOTIFICATION_PHONE,
+        `Nueva reserva pendiente de aprobacion.\n` +
+          `Cliente: ${conversation.clientPhoneE164}\n` +
+          `Cita ID: ${appointmentId}\n\n` +
+          `Aprueba o rechaza desde el panel.`
+      ),
+    });
 
     return {
       nextStep: "awaiting_approval",
