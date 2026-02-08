@@ -4,10 +4,15 @@ import type {
   StepResult,
   QueuedMessage,
 } from "../../whatsapp/types";
-import { buildTextMessage } from "../../whatsapp/messageBuilder";
+import {
+  buildButtonMessage,
+  buildImageMessageById,
+  buildTextMessage,
+} from "../../whatsapp/messageBuilder";
 import { downloadAndSavePaymentProof } from "../../whatsapp/mediaHandler";
 import { prisma } from "../../database/prisma";
 import { env } from "../../config/env";
+import { formatDateSpanish } from "../helpers/dateUtils";
 
 const PAYMENT_PROOF_RETENTION_DAYS = 90;
 
@@ -57,18 +62,45 @@ export async function handleAwaitingPayment(
         paymentProofExpiresAt: expiresAt,
       },
     });
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { service: true, timeSlot: true },
+    });
+    const dateIso = appointment?.date.toISOString().split("T")[0];
+    const serviceName = appointment?.service.name ?? "N/D";
+    const amount = appointment?.service.price?.toString() ?? "N/D";
+    const timeRange = appointment
+      ? `${appointment.timeSlot.startTime} - ${appointment.timeSlot.endTime}`
+      : "N/D";
 
     // Notify admin phone (test number allowed in Meta)
     const adminNotifications: QueuedMessage[] = [];
     adminNotifications.push({
       toPhoneE164: env.ADMIN_NOTIFICATION_PHONE,
       appointmentId,
-      payload: buildTextMessage(
+      payload: buildImageMessageById(
+        env.ADMIN_NOTIFICATION_PHONE,
+        content.mediaId,
+        "Comprobante de pago recibido"
+      ),
+    });
+    adminNotifications.push({
+      toPhoneE164: env.ADMIN_NOTIFICATION_PHONE,
+      appointmentId,
+      payload: buildButtonMessage(
         env.ADMIN_NOTIFICATION_PHONE,
         `Nueva reserva pendiente de aprobacion.\n` +
           `Cliente: ${conversation.clientPhoneE164}\n` +
+          `Servicio: ${serviceName}\n` +
+          `Monto: L ${amount}\n` +
+          `Fecha: ${dateIso ? formatDateSpanish(dateIso) : "N/D"}\n` +
+          `Hora: ${timeRange}\n` +
           `Cita ID: ${appointmentId}\n\n` +
-          `Aprueba o rechaza desde el panel.`
+          `Elige una opcion:`,
+        [
+          { id: `admin_approve:${appointmentId}`, title: "Aprobar" },
+          { id: `admin_reject:${appointmentId}`, title: "Rechazar" },
+        ]
       ),
     });
 

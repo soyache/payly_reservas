@@ -4,8 +4,8 @@ import { processOutboundQueue } from "./outboundWorker";
 let isProcessing = false;
 
 export function startScheduler(): void {
-  // Run outbound worker every 30 seconds
-  cron.schedule("*/30 * * * * *", async () => {
+  // Run outbound worker every 5 seconds
+  cron.schedule("*/5 * * * * *", async () => {
     if (isProcessing) return;
     isProcessing = true;
     try {
@@ -17,5 +17,5 @@ export function startScheduler(): void {
     }
   });
 
-  console.log("Scheduler started: outbound worker runs every 30s");
+  console.log("Scheduler started: outbound worker runs every 5s");
 }

@@ -123,11 +123,20 @@ export interface MetaTemplatePayload {
   };
 }
 
+export interface MetaImagePayload {
+  messaging_product: "whatsapp";
+  recipient_type: "individual";
+  to: string;
+  type: "image";
+  image: { id: string; caption?: string };
+}
+
 export type MetaOutboundPayload =
   | MetaTextPayload
   | MetaInteractiveButtonPayload
   | MetaInteractiveListPayload
-  | MetaTemplatePayload;
+  | MetaTemplatePayload
+  | MetaImagePayload;
 
 // ── Step handler contract ───────────────────────────────────────
 

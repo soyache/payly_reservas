@@ -3,6 +3,7 @@ import type {
   MetaInteractiveButtonPayload,
   MetaInteractiveListPayload,
   MetaTemplatePayload,
+  MetaImagePayload,
 } from "./types";
 
 export function buildTextMessage(to: string, body: string): MetaTextPayload {
@@ -106,4 +107,21 @@ export function buildTemplateMessage(
   }
 
   return payload;
+}
+
+export function buildImageMessageById(
+  to: string,
+  mediaId: string,
+  caption?: string
+): MetaImagePayload {
+  return {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "image",
+    image: {
+      id: mediaId,
+      ...(caption ? { caption } : {}),
+    },
+  };
 }
