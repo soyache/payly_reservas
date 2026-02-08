@@ -424,7 +424,7 @@ $("loginForm").addEventListener("submit", async (event) => {
     password: $("password").value,
   };
   submitBtn.disabled = true;
-  submitBtn.textContent = "Entrando\u2026";
+  submitBtn.textContent = "Iniciando sesion\u2026";
   try {
     const data = await api("/api/admin/auth/login", {
       method: "POST",
@@ -438,8 +438,19 @@ $("loginForm").addEventListener("submit", async (event) => {
     $("loginError").textContent = error.message || "No se pudo iniciar sesion. Verifica tus credenciales.";
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = "Entrar";
+    submitBtn.textContent = "Iniciar sesion";
   }
+});
+
+// Toggle password visibility
+$("togglePassword").addEventListener("click", () => {
+  const pw = $("password");
+  const isHidden = pw.type === "password";
+  pw.type = isHidden ? "text" : "password";
+  $("togglePassword").setAttribute(
+    "aria-label",
+    isHidden ? "Ocultar contrasena" : "Mostrar contrasena"
+  );
 });
 
 $("logoutBtn").addEventListener("click", logout);

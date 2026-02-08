@@ -23,7 +23,9 @@
       "Bash(xargs kill:*)",
       "Bash(npx skills add:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:skills.sh)",
+      "Bash(copy \"C:\\\\dev\\\\payly_reservas\\\\assets\\\\images\\\\icon.png\" \"C:\\\\dev\\\\payly_reservas\\\\public\\\\admin\\\\icon.png\")"
     ]
   }
 }

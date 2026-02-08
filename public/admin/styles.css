@@ -4,13 +4,13 @@
   --muted: #6b7280;
   --card: #ffffff;
   --line: #e6e8ee;
-  --brand: #0a84ff;
-  --brand-hover: #0071e3;
-  --brand-soft: #e6f2ff;
+  --brand: #e07520;
+  --brand-hover: #c9661a;
+  --brand-soft: #fff3e6;
   --danger: #b42318;
   --danger-hover: #912018;
   --danger-soft: #ffe9e7;
-  --focus-ring: rgba(10, 132, 255, 0.34);
+  --focus-ring: rgba(224, 117, 32, 0.34);
   --radius: 14px;
   --radius-lg: 20px;
 }
@@ -123,37 +123,109 @@ h3 {
 
 /* Login */
 .login-card {
-  width: min(420px, 100%);
-  margin: 8vh auto 0;
+  width: min(400px, 100%);
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.login-logo {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 24px;
+  border-radius: 10px;
 }
 
 .login-card h1 {
-  margin-bottom: 6px;
-}
-
-.login-card p {
-  color: var(--muted);
-  margin-top: 4px;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 28px;
+  text-align: center;
 }
 
 .login-card form {
-  margin-top: 16px;
+  width: 100%;
 }
 
-.login-card label {
-  display: block;
+.input-group {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.input-group input {
+  background: var(--bg);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 15px;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input-group input:focus-visible {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--focus-ring);
+  background: #fff;
+}
+
+.input-group input::placeholder {
+  color: #9ca3af;
+}
+
+.toggle-pw {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+
+.toggle-pw:hover {
+  color: var(--ink);
+}
+
+/* Login divider */
+.login-divider {
+  width: 100%;
+  text-align: center;
+  margin: 20px 0 16px;
+  position: relative;
+}
+
+.login-divider span {
+  color: var(--muted);
   font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  margin-top: 12px;
 }
 
-.login-card label:first-of-type {
-  margin-top: 0;
+/* WhatsApp button */
+.btn.whatsapp {
+  background: #25d366;
+  color: #fff;
+  border: none;
+  font-weight: 700;
+  text-decoration: none;
 }
 
-.login-card input {
-  margin-bottom: 4px;
+.btn.whatsapp:hover {
+  background: #20bd5a;
+}
+
+.btn.whatsapp:active {
+  background: #1da851;
 }
 
 /* Form elements */
@@ -220,7 +292,7 @@ select:focus-visible {
 }
 
 .btn.primary:active:not(:disabled) {
-  background: #0b5550;
+  background: #b35a15;
 }
 
 .btn.ghost {
@@ -255,7 +327,10 @@ select:focus-visible {
 
 .full-w {
   width: 100%;
-  margin-top: 16px;
+  margin-top: 8px;
+  padding: 13px 16px;
+  border-radius: 10px;
+  font-size: 15px;
 }
 
 /* Utility */
@@ -290,12 +365,12 @@ select:focus-visible {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: linear-gradient(160deg, #0a84ff 0%, #5ab5ff 100%);
+  background: linear-gradient(160deg, #e07520 0%, #f0a060 100%);
   color: #fff;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  box-shadow: 0 6px 18px rgb(10 132 255 / 0.28);
+  box-shadow: 0 6px 18px rgb(224 117 32 / 0.28);
 }
 
 .icon-btn {
@@ -503,7 +578,7 @@ select:focus-visible {
 .nav-item.active {
   background: var(--brand);
   color: #fff;
-  box-shadow: 0 3px 14px rgb(10 132 255 / 0.35);
+  box-shadow: 0 3px 14px rgb(224 117 32 / 0.35);
 }
 
 /* View containers */
