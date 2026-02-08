@@ -18,6 +18,7 @@ enum AppointmentStatus {
 }
 
 enum ConversationStep {
+  collect_name
   greeting
   select_service
   select_date
@@ -165,6 +166,7 @@ model Conversation {
   businessId             String           @map("business_id")
   clientPhone            String           @map("client_phone")
   clientPhoneE164        String           @map("client_phone_e164")
+  clientName             String?          @map("client_name")
   currentStep            ConversationStep @default(greeting) @map("current_step")
   tempData               Json?            @map("temp_data")
   lastMessageAt          DateTime         @default(now()) @map("last_message_at")

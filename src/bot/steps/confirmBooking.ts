@@ -7,6 +7,7 @@ import {
 import { prisma } from "../../database/prisma";
 import { formatDateSpanish } from "../helpers/dateUtils";
 import { env } from "../../config/env";
+import { getClientName } from "../helpers/clientName";
 
 async function showSummary(
   business: Business,
@@ -14,6 +15,7 @@ async function showSummary(
   to: string
 ): Promise<StepResult> {
   const tempData = (conversation.tempData as Record<string, unknown>) || {};
+  const clientName = getClientName(conversation);
 
   const service = await prisma.service.findUnique({
     where: { id: tempData.selectedServiceId as string },
@@ -33,6 +35,7 @@ async function showSummary(
         payload: buildButtonMessage(
           to,
           `Resumen de tu cita:\n\n` +
+            `Cliente: ${clientName ?? "N/D"}\n` +
             `Servicio: ${service?.name ?? "?"}\n` +
             `Fecha: ${formatDateSpanish(dateIso)}\n` +
             `Hora: ${timeSlot?.startTime ?? "?"} - ${timeSlot?.endTime ?? "?"}\n` +
@@ -55,6 +58,7 @@ export async function handleConfirmBooking(
   content: ParsedMessageContent
 ): Promise<StepResult> {
   const to = conversation.clientPhoneE164;
+  const clientName = getClientName(conversation);
   const tempData = (conversation.tempData as Record<string, unknown>) || {};
 
   // First entry (from selectTime) → show summary
@@ -71,7 +75,7 @@ export async function handleConfirmBooking(
           toPhoneE164: to,
           payload: buildTextMessage(
             to,
-            "Reserva cancelada. Escribe cualquier mensaje para iniciar de nuevo."
+            `${clientName ? `${clientName}, ` : ""}reserva cancelada. Escribe cualquier mensaje para iniciar de nuevo.`
           ),
         },
       ],
@@ -126,6 +130,7 @@ export async function handleConfirmBooking(
             serviceId,
             clientPhone: conversation.clientPhone,
             clientPhoneE164: conversation.clientPhoneE164,
+            clientName: clientName ?? null,
             date: new Date(dateStr),
             timeSlotId,
             status: "pending_payment",
@@ -159,7 +164,7 @@ export async function handleConfirmBooking(
             appointmentId: appointment.id,
             payload: buildTextMessage(
               to,
-              `Cita reservada!\n\n` +
+              `Cita reservada${clientName ? `, ${clientName}` : ""}!\n\n` +
                 `Servicio: ${service?.name}\n` +
                 `Monto: L ${service?.price}\n\n` +
                 bankInfo +
@@ -182,7 +187,7 @@ export async function handleConfirmBooking(
               toPhoneE164: to,
               payload: buildTextMessage(
                 to,
-                "Lo sentimos, ese horario ya no esta disponible. Elige otra fecha y hora."
+                `${clientName ? `${clientName}, ` : ""}lo sentimos, ese horario ya no esta disponible. Elige otra fecha y hora.`
               ),
             },
           ],

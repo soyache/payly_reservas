@@ -1,6 +1,7 @@
 import type { Business, Conversation } from "@prisma/client";
 import type { ParsedMessageContent, StepResult } from "../../whatsapp/types";
 import { buildButtonMessage, buildTextMessage } from "../../whatsapp/messageBuilder";
+import { getClientName } from "../helpers/clientName";
 
 export async function handleGreeting(
   business: Business,
@@ -8,6 +9,7 @@ export async function handleGreeting(
   content: ParsedMessageContent
 ): Promise<StepResult> {
   const to = conversation.clientPhoneE164;
+  const clientName = getClientName(conversation);
 
   // User tapped "Info/Horarios"
   if (content.type === "button_reply" && content.buttonId === "info_horarios") {
@@ -22,7 +24,8 @@ export async function handleGreeting(
           toPhoneE164: to,
           payload: buildTextMessage(
             to,
-            `${business.name}\n` +
+            `${clientName ? `Hola ${clientName}!\n` : ""}` +
+              `${business.name}\n` +
               `Dias: ${days}\n` +
               (business.address ? `Direccion: ${business.address}\n` : "") +
               `\nEscribe cualquier mensaje para ver el menu.`
@@ -50,7 +53,7 @@ export async function handleGreeting(
         toPhoneE164: to,
         payload: buildButtonMessage(
           to,
-          `Hola! Bienvenido a ${business.name}.\nComo te puedo ayudar?`,
+          `${clientName ? `Hola ${clientName}!` : "Hola!"} Bienvenido a ${business.name}.\nComo te puedo ayudar?`,
           [
             { id: "agendar_cita", title: "Agendar cita" },
             { id: "info_horarios", title: "Info / Horarios" },

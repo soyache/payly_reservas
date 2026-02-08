@@ -2,11 +2,14 @@ import type { Business, Conversation } from "@prisma/client";
 import type { ParsedMessageContent, StepResult } from "../../whatsapp/types";
 import { buildListMessage } from "../../whatsapp/messageBuilder";
 import { prisma } from "../../database/prisma";
+import { getClientName } from "../helpers/clientName";
 
 async function showServicesList(
   business: Business,
+  conversation: Conversation,
   to: string
 ): Promise<StepResult> {
+  const clientName = getClientName(conversation);
   const services = await prisma.service.findMany({
     where: { businessId: business.id, isActive: true },
     orderBy: { name: "asc" },
@@ -26,7 +29,7 @@ async function showServicesList(
         toPhoneE164: to,
         payload: buildListMessage(
           to,
-          "Estos son nuestros servicios. Elige uno:",
+          `${clientName ? `${clientName}, ` : ""}estos son nuestros servicios. Elige uno:`,
           "Ver servicios",
           [
             {
@@ -59,7 +62,7 @@ export async function handleSelectService(
     });
 
     if (!service) {
-      return showServicesList(business, to);
+      return showServicesList(business, conversation, to);
     }
 
     return {
@@ -73,5 +76,5 @@ export async function handleSelectService(
     };
   }
 
-  return showServicesList(business, to);
+  return showServicesList(business, conversation, to);
 }

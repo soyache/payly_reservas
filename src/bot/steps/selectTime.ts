@@ -1,6 +1,7 @@
 import type { Business, Conversation } from "@prisma/client";
 import type { ParsedMessageContent, StepResult } from "../../whatsapp/types";
 import { buildListMessage, buildTextMessage } from "../../whatsapp/messageBuilder";
+import { getClientName } from "../helpers/clientName";
 import { getAvailableSlots } from "../helpers/slotAvailability";
 import { formatDateSpanish, getNextWorkingDays } from "../helpers/dateUtils";
 
@@ -10,6 +11,7 @@ export async function handleSelectTime(
   content: ParsedMessageContent
 ): Promise<StepResult> {
   const to = conversation.clientPhoneE164;
+  const clientName = getClientName(conversation);
   const tempData = (conversation.tempData as Record<string, unknown>) || {};
   const dateIso = tempData.selectedDate as string;
 
@@ -22,7 +24,7 @@ export async function handleSelectTime(
 
   // First entry into this step or invalid input → show available slots
   if (content.type !== "list_reply" || !content.listId.startsWith("slot_")) {
-    return showTimeSlots(business, to, dateIso);
+    return showTimeSlots(business, to, dateIso, clientName);
   }
 
   // Parse "slot_{timeSlotId}"
@@ -38,7 +40,8 @@ export async function handleSelectTime(
 async function showTimeSlots(
   business: Business,
   to: string,
-  dateIso: string
+  dateIso: string,
+  clientName: string | null
 ): Promise<StepResult> {
   const d = new Date(dateIso + "T12:00:00Z");
   const dayOfWeek = d.getUTCDay();
@@ -54,12 +57,12 @@ async function showTimeSlots(
           toPhoneE164: to,
           payload: buildTextMessage(
             to,
-            "No hay horarios disponibles para esa fecha. Elige otra:"
+            `${clientName ? `${clientName}, ` : ""}no hay horarios disponibles para esa fecha. Elige otra:`
           ),
         },
         {
           toPhoneE164: to,
-          payload: buildListMessage(to, "Elige una fecha:", "Ver fechas", [
+          payload: buildListMessage(to, `${clientName ? `${clientName}, ` : ""}elige una fecha:`, "Ver fechas", [
             {
               title: "Fechas disponibles",
               rows: days.map((dd) => ({
@@ -81,7 +84,7 @@ async function showTimeSlots(
         toPhoneE164: to,
         payload: buildListMessage(
           to,
-          `Fecha: ${formatDateSpanish(dateIso)}\nElige un horario:`,
+          `Fecha: ${formatDateSpanish(dateIso)}\n${clientName ? `${clientName}, ` : ""}elige un horario:`,
           "Ver horarios",
           [
             {

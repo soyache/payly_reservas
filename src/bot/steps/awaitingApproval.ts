@@ -1,6 +1,7 @@
 import type { Business, Conversation } from "@prisma/client";
 import type { ParsedMessageContent, StepResult } from "../../whatsapp/types";
 import { buildTextMessage } from "../../whatsapp/messageBuilder";
+import { getClientName } from "../helpers/clientName";
 
 export async function handleAwaitingApproval(
   _business: Business,
@@ -8,6 +9,7 @@ export async function handleAwaitingApproval(
   _content: ParsedMessageContent
 ): Promise<StepResult> {
   const to = conversation.clientPhoneE164;
+  const clientName = getClientName(conversation);
 
   return {
     nextStep: "awaiting_approval",
@@ -16,7 +18,7 @@ export async function handleAwaitingApproval(
         toPhoneE164: to,
         payload: buildTextMessage(
           to,
-          "Tu pago esta siendo revisado. Te notificaremos pronto.\nGracias por tu paciencia."
+          `${clientName ? `${clientName}, ` : ""}tu pago esta siendo revisado. Te notificaremos pronto.\nGracias por tu paciencia.`
         ),
       },
     ],

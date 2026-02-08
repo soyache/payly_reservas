@@ -1,9 +1,15 @@
 import type { Business, Conversation } from "@prisma/client";
 import type { ParsedMessageContent, StepResult } from "../../whatsapp/types";
 import { buildListMessage } from "../../whatsapp/messageBuilder";
+import { getClientName } from "../helpers/clientName";
 import { getNextWorkingDays } from "../helpers/dateUtils";
 
-function buildDateList(business: Business, to: string): StepResult {
+function buildDateList(
+  business: Business,
+  conversation: Conversation,
+  to: string
+): StepResult {
+  const clientName = getClientName(conversation);
   const days = getNextWorkingDays(business, 7);
 
   return {
@@ -11,7 +17,7 @@ function buildDateList(business: Business, to: string): StepResult {
     messages: [
       {
         toPhoneE164: to,
-        payload: buildListMessage(to, "Elige una fecha:", "Ver fechas", [
+        payload: buildListMessage(to, `${clientName ? `${clientName}, ` : ""}elige una fecha:`, "Ver fechas", [
           {
             title: "Fechas disponibles",
             rows: days.map((d) => ({
@@ -43,5 +49,5 @@ export async function handleSelectDate(
     };
   }
 
-  return buildDateList(business, to);
+  return buildDateList(business, conversation, to);
 }

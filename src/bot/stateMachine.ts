@@ -5,6 +5,7 @@ import type {
   StepResult,
 } from "../whatsapp/types";
 import { handleGreeting } from "./steps/greeting";
+import { handleCollectName } from "./steps/collectName";
 import { handleSelectService } from "./steps/selectService";
 import { handleSelectDate } from "./steps/selectDate";
 import { handleSelectTime } from "./steps/selectTime";
@@ -24,11 +25,17 @@ export async function dispatch(
   if (content.type === "text") {
     const lower = content.body.toLowerCase().trim();
     if (RESET_COMMANDS.includes(lower)) {
-      return handleGreeting(business, conversation, content);
+      if (conversation.clientName?.trim()) {
+        return handleGreeting(business, conversation, content);
+      }
+      return handleCollectName(business, conversation, content);
     }
   }
 
   switch (currentStep) {
+    case "collect_name":
+      return handleCollectName(business, conversation, content);
+
     case "greeting":
       return handleGreeting(business, conversation, content);
 
@@ -51,9 +58,15 @@ export async function dispatch(
       return handleAwaitingApproval(business, conversation, content);
 
     case "completed":
-      return handleGreeting(business, conversation, content);
+      if (conversation.clientName?.trim()) {
+        return handleGreeting(business, conversation, content);
+      }
+      return handleCollectName(business, conversation, content);
 
     default:
-      return handleGreeting(business, conversation, content);
+      if (conversation.clientName?.trim()) {
+        return handleGreeting(business, conversation, content);
+      }
+      return handleCollectName(business, conversation, content);
   }
 }

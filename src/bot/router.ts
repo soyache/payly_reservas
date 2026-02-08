@@ -16,6 +16,11 @@ const REJECT_REASONS: Record<RejectReasonCode, string> = {
   service_unavailable_refund: "Servicio no disponible, se aplicara devolucion.",
 };
 
+function buildClientGreeting(name: string | null | undefined, fallback: string): string {
+  const normalized = name?.trim();
+  return normalized ? `Hola ${normalized}! ${fallback}` : fallback;
+}
+
 function getAdminDecisionFromButton(
   buttonId: string
 ):
@@ -127,7 +132,7 @@ export async function handleIncomingMessage(
       businessId: business.id,
       clientPhone: msg.from,
       clientPhoneE164,
-      currentStep: "greeting",
+      currentStep: "collect_name",
       lastMessageAt: now,
       serviceWindowExpiresAt: serviceWindowExpiry,
     },
@@ -194,6 +199,18 @@ export async function handleIncomingMessage(
         },
       });
 
+      const clientConversation = await prisma.conversation.findUnique({
+        where: {
+          businessId_clientPhoneE164: {
+            businessId: appointment.businessId,
+            clientPhoneE164: appointment.clientPhoneE164,
+          },
+        },
+        select: { clientName: true },
+      });
+      const clientName =
+        appointment.clientName?.trim() || clientConversation?.clientName?.trim() || null;
+
       const dateStr = appointment.date.toISOString().split("T")[0];
       await enqueueMessages(business.id, [
         {
@@ -201,7 +218,8 @@ export async function handleIncomingMessage(
           appointmentId: appointment.id,
           payload: buildTextMessage(
             appointment.clientPhoneE164,
-            `Tu cita ha sido confirmada!\n\n` +
+            buildClientGreeting(clientName, "Tu cita ha sido confirmada!") +
+              `\n\n` +
               `Servicio: ${appointment.service.name}\n` +
               `Fecha: ${formatDateSpanish(dateStr)}\n` +
               `Hora: ${appointment.timeSlot.startTime} - ${appointment.timeSlot.endTime}\n` +
@@ -290,7 +308,8 @@ export async function handleIncomingMessage(
         appointmentId: appointment.id,
         payload: buildTextMessage(
           appointment.clientPhoneE164,
-          `Lo sentimos, tu pago no fue aprobado.\n` +
+          buildClientGreeting(appointment.clientName, "Lo sentimos, tu pago no fue aprobado.") +
+            `\n` +
             `Motivo: ${rejectReason}\n\n` +
             `Puedes intentar de nuevo enviando "inicio".`
         ),
@@ -317,7 +336,16 @@ export async function handleIncomingMessage(
   }
 
   // 8. Determine current step
-  const currentStep = isTimedOut ? "greeting" : conversation.currentStep;
+  const hasClientName = Boolean(conversation.clientName?.trim());
+  let currentStep = isTimedOut
+    ? hasClientName
+      ? "greeting"
+      : "collect_name"
+    : conversation.currentStep;
+
+  if (!hasClientName && (currentStep === "greeting" || currentStep === "completed")) {
+    currentStep = "collect_name";
+  }
 
   // 9. Run state machine
   console.log(`[Router] Dispatching step: ${currentStep}, content type: ${msg.content.type}`);
@@ -325,11 +353,21 @@ export async function handleIncomingMessage(
   console.log(`[Router] Step result: nextStep=${result.nextStep}, messages=${result.messages.length}`);
 
   // 10. Merge tempData
-  const existingTemp =
-    (conversation.tempData as Record<string, unknown>) || {};
-  const newTempData = result.tempData !== undefined
-    ? { ...existingTemp, ...result.tempData }
-    : existingTemp;
+  const existingTemp = (conversation.tempData as Record<string, unknown>) || {};
+  const resultTemp = result.tempData || {};
+  const newTempData =
+    result.tempData !== undefined ? { ...existingTemp, ...result.tempData } : existingTemp;
+  const confirmedNameRaw =
+    typeof resultTemp.confirmedName === "string" ? resultTemp.confirmedName.trim() : "";
+  const confirmedName = confirmedNameRaw || null;
+
+  if (result.nextStep !== "collect_name") {
+    delete newTempData.pendingName;
+    delete newTempData.nameStep;
+    delete newTempData.confirmedName;
+  } else if (!confirmedName) {
+    delete newTempData.confirmedName;
+  }
 
   // 11. Update conversation
   await prisma.conversation.update({
@@ -337,6 +375,7 @@ export async function handleIncomingMessage(
     data: {
       currentStep: result.nextStep,
       tempData: newTempData as Prisma.InputJsonValue,
+      ...(confirmedName ? { clientName: confirmedName } : {}),
     },
   });
 
@@ -344,9 +383,16 @@ export async function handleIncomingMessage(
   // Some steps return nextStep without messages (e.g., selectService → selectDate)
   // In these cases, we need to "enter" the next step to generate the initial UI
   if (result.messages.length === 0 && result.nextStep !== currentStep) {
+    const conversationForFollowUp = {
+      ...conversation,
+      currentStep: result.nextStep,
+      tempData: newTempData,
+      clientName: confirmedName ?? conversation.clientName,
+    } as typeof conversation;
+
     const followUp = await dispatch(
       business,
-      { ...conversation, currentStep: result.nextStep, tempData: newTempData } as typeof conversation,
+      conversationForFollowUp,
       result.nextStep,
       { type: "unknown" }
     );

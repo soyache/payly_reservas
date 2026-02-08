@@ -4,16 +4,28 @@ import { adminAuth } from "../middleware/adminAuth";
 import { enqueueMessages } from "../../bot/sendMessage";
 import { buildTextMessage } from "../../whatsapp/messageBuilder";
 import { formatDateSpanish } from "../../bot/helpers/dateUtils";
+import { resolveBusinessScope } from "../helpers/adminBusinessScope";
 
 export const appointmentsRouter = Router();
+
+function buildClientGreeting(name: string | null | undefined, fallback: string): string {
+  const normalized = name?.trim();
+  return normalized ? `Hola ${normalized}! ${fallback}` : fallback;
+}
 
 // List appointments with optional filters
 appointmentsRouter.get("/", adminAuth, async (req, res) => {
   const { status, dateFrom, dateTo, businessId } = req.query;
+  const scopedBusinessId = resolveBusinessScope(req, res);
+  if (!scopedBusinessId) return;
 
   const where: Record<string, unknown> = {};
   if (status) where.status = status;
-  if (businessId) where.businessId = businessId;
+  if (businessId && businessId !== scopedBusinessId) {
+    res.status(403).json({ error: "Forbidden: invalid business scope" });
+    return;
+  }
+  where.businessId = scopedBusinessId;
   if (dateFrom || dateTo) {
     const dateFilter: Record<string, Date> = {};
     if (dateFrom) dateFilter.gte = new Date(dateFrom as string);
@@ -34,13 +46,15 @@ appointmentsRouter.get("/", adminAuth, async (req, res) => {
 // Approve an appointment
 appointmentsRouter.post("/:id/approve", adminAuth, async (req, res) => {
   const { id } = req.params;
+  const scopedBusinessId = resolveBusinessScope(req, res);
+  if (!scopedBusinessId) return;
 
   const appointment = await prisma.appointment.findUnique({
     where: { id },
     include: { service: true, business: true, timeSlot: true },
   });
 
-  if (!appointment) {
+  if (!appointment || appointment.businessId !== scopedBusinessId) {
     res.status(404).json({ error: "Appointment not found" });
     return;
   }
@@ -82,7 +96,8 @@ appointmentsRouter.post("/:id/approve", adminAuth, async (req, res) => {
       appointmentId: id,
       payload: buildTextMessage(
         appointment.clientPhoneE164,
-        `Tu cita ha sido confirmada!\n\n` +
+        buildClientGreeting(appointment.clientName, "Tu cita ha sido confirmada!") +
+          `\n\n` +
           `Servicio: ${appointment.service.name}\n` +
           `Fecha: ${formatDateSpanish(dateStr)}\n` +
           `Hora: ${appointment.timeSlot.startTime} - ${appointment.timeSlot.endTime}\n` +
@@ -110,13 +125,15 @@ appointmentsRouter.post("/:id/approve", adminAuth, async (req, res) => {
 appointmentsRouter.post("/:id/reject", adminAuth, async (req, res) => {
   const { id } = req.params;
   const { reason } = req.body || {};
+  const scopedBusinessId = resolveBusinessScope(req, res);
+  if (!scopedBusinessId) return;
 
   const appointment = await prisma.appointment.findUnique({
     where: { id },
     include: { service: true, business: true },
   });
 
-  if (!appointment) {
+  if (!appointment || appointment.businessId !== scopedBusinessId) {
     res.status(404).json({ error: "Appointment not found" });
     return;
   }
@@ -156,7 +173,8 @@ appointmentsRouter.post("/:id/reject", adminAuth, async (req, res) => {
       appointmentId: id,
       payload: buildTextMessage(
         appointment.clientPhoneE164,
-        `Lo sentimos, tu pago no fue aprobado.\n` +
+        buildClientGreeting(appointment.clientName, "Lo sentimos, tu pago no fue aprobado.") +
+          `\n` +
           (reason ? `Motivo: ${reason}\n\n` : "\n") +
           `Puedes intentar de nuevo enviando "inicio".`
       ),

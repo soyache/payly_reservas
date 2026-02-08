@@ -13,6 +13,7 @@ import { downloadAndSavePaymentProof } from "../../whatsapp/mediaHandler";
 import { prisma } from "../../database/prisma";
 import { env } from "../../config/env";
 import { formatDateSpanish } from "../helpers/dateUtils";
+import { getClientName } from "../helpers/clientName";
 
 const PAYMENT_PROOF_RETENTION_DAYS = 90;
 
@@ -22,6 +23,7 @@ export async function handleAwaitingPayment(
   content: ParsedMessageContent
 ): Promise<StepResult> {
   const to = conversation.clientPhoneE164;
+  const clientName = getClientName(conversation);
   const tempData = (conversation.tempData as Record<string, unknown>) || {};
   const appointmentId = tempData.appointmentId as string;
 
@@ -34,7 +36,7 @@ export async function handleAwaitingPayment(
           toPhoneE164: to,
           payload: buildTextMessage(
             to,
-            "Ocurrio un error. Escribe cualquier mensaje para iniciar de nuevo."
+            `${clientName ? `${clientName}, ` : ""}ocurrio un error. Escribe cualquier mensaje para iniciar de nuevo.`
           ),
         },
       ],
@@ -90,7 +92,7 @@ export async function handleAwaitingPayment(
       payload: buildButtonMessage(
         env.ADMIN_NOTIFICATION_PHONE,
         `Nueva reserva pendiente de aprobacion.\n` +
-          `Cliente: ${conversation.clientPhoneE164}\n` +
+          `Cliente: ${clientName ?? "N/D"} (${conversation.clientPhoneE164})\n` +
           `Servicio: ${serviceName}\n` +
           `Monto: L ${amount}\n` +
           `Fecha: ${dateIso ? formatDateSpanish(dateIso) : "N/D"}\n` +
@@ -112,7 +114,7 @@ export async function handleAwaitingPayment(
           appointmentId,
           payload: buildTextMessage(
             to,
-            "Comprobante recibido! Tu pago esta siendo revisado.\nTe notificaremos cuando sea aprobado."
+            `${clientName ? `${clientName}, ` : ""}comprobante recibido! Tu pago esta siendo revisado.\nTe notificaremos cuando sea aprobado.`
           ),
         },
         ...adminNotifications,
@@ -128,7 +130,7 @@ export async function handleAwaitingPayment(
         toPhoneE164: to,
         payload: buildTextMessage(
           to,
-          "Por favor envia una foto de tu comprobante de pago."
+          `${clientName ? `${clientName}, ` : ""}por favor envia una foto de tu comprobante de pago.`
         ),
       },
     ],

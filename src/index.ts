@@ -1,10 +1,14 @@
 import express from "express";
 import fs from "node:fs";
+import path from "node:path";
 import morgan from "morgan";
 import { env } from "./config/env";
 import { webhookRouter } from "./whatsapp/webhook";
 import { appointmentsRouter } from "./api/routes/appointments";
 import { startScheduler } from "./jobs/scheduler";
+import { adminAuthRouter } from "./api/routes/adminAuth";
+import { adminServicesRouter } from "./api/routes/adminServices";
+import { adminTimeSlotsRouter } from "./api/routes/adminTimeSlots";
 
 async function bootstrap(): Promise<void> {
   if (!fs.existsSync(env.UPLOAD_DIR)) {
@@ -33,8 +37,14 @@ async function bootstrap(): Promise<void> {
   // WhatsApp webhook routes
   app.use(webhookRouter);
 
-  // Admin API routes
+  // Legacy Admin API routes (token-based)
   app.use("/api/appointments", appointmentsRouter);
+  // Admin panel API routes
+  app.use("/api/admin/auth", adminAuthRouter);
+  app.use("/api/admin/appointments", appointmentsRouter);
+  app.use("/api/admin/services", adminServicesRouter);
+  app.use("/api/admin/time-slots", adminTimeSlotsRouter);
+  app.use("/admin", express.static(path.join(process.cwd(), "public", "admin")));
 
   // Start outbound message worker
   startScheduler();

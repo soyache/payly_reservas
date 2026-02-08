@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f8fc" />
+    <title>Payly Admin | Barberia</title>
+    <link rel="stylesheet" href="/admin/styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb bg-orb-a" aria-hidden="true"></div>
+    <div class="bg-orb bg-orb-b" aria-hidden="true"></div>
+
+    <a href="#main-content" class="skip-link">Saltar al contenido</a>
+
+    <main class="shell" id="main-content">
+      <section id="loginCard" class="card login-card">
+        <h1>Panel Barberia</h1>
+        <p>Accede con tu usuario y contrasena de administrador.</p>
+        <form id="loginForm">
+          <label for="username">Usuario</label>
+          <input
+            id="username"
+            name="username"
+            required
+            autocomplete="username"
+            placeholder="admin"
+            spellcheck="false"
+          />
+          <label for="password">Contrasena</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autocomplete="current-password"
+          />
+          <button type="submit" class="btn primary full-w">Entrar</button>
+        </form>
+        <p id="loginError" class="error" aria-live="polite"></p>
+      </section>
+
+      <section id="app" class="hidden">
+        <header class="topbar">
+          <div class="brand-block">
+            <div class="brand-mark" aria-hidden="true">P</div>
+            <div>
+              <h1 id="welcomeTitle">Hola</h1>
+              <p id="businessMeta"></p>
+            </div>
+          </div>
+          <button id="logoutBtn" class="btn ghost icon-btn" aria-label="Cerrar sesion">
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </header>
+
+        <nav id="mainNav" class="main-nav" aria-label="Navegacion principal">
+          <a href="#dashboard" class="nav-item" data-view="dashboard" aria-current="page">
+            <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span>Inicio</span>
+          </a>
+          <a href="#calendar" class="nav-item" data-view="calendar">
+            <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span>Calendario</span>
+          </a>
+          <a href="#services" class="nav-item" data-view="services">
+            <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><path d="M8.12 8.12L12 12"/><circle cx="18" cy="18" r="3"/><path d="M20 4L8.12 15.88"/></svg>
+            <span>Servicios</span>
+          </a>
+          <a href="#slots" class="nav-item" data-view="slots">
+            <svg aria-hidden="true" focusable="false" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>Horarios</span>
+          </a>
+        </nav>
+
+        <!-- Dashboard view -->
+        <div id="viewDashboard" class="view">
+          <section class="cards-grid" aria-label="Estadisticas">
+            <article class="card stat">
+              <h3>Pendientes de pago</h3>
+              <p id="statPendingPayment" class="stat-number">0</p>
+            </article>
+            <article class="card stat">
+              <h3>Pendientes de aprobacion</h3>
+              <p id="statPendingApproval" class="stat-number">0</p>
+            </article>
+            <article class="card stat">
+              <h3>Confirmadas</h3>
+              <p id="statConfirmed" class="stat-number">0</p>
+            </article>
+            <article class="card stat">
+              <h3>Canceladas</h3>
+              <p id="statCancelled" class="stat-number">0</p>
+            </article>
+          </section>
+
+          <section class="card">
+            <div class="section-head">
+              <h2>Citas pendientes de aprobacion</h2>
+              <button id="refreshApprovalsBtn" class="btn ghost" aria-label="Actualizar citas pendientes">Actualizar</button>
+            </div>
+            <div id="approvalsList" class="list" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <!-- Calendar view -->
+        <div id="viewCalendar" class="view">
+          <section class="card">
+            <div class="section-head">
+              <h2>Calendario de citas</h2>
+              <div class="filters">
+                <label for="dateFrom" class="sr-only">Fecha desde</label>
+                <input id="dateFrom" name="dateFrom" type="date" aria-label="Fecha desde" autocomplete="off" />
+                <label for="dateTo" class="sr-only">Fecha hasta</label>
+                <input id="dateTo" name="dateTo" type="date" aria-label="Fecha hasta" autocomplete="off" />
+                <button id="loadCalendarBtn" class="btn ghost" aria-label="Ver citas del rango">Ver</button>
+              </div>
+            </div>
+            <div id="calendarList" class="list" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <!-- Services view -->
+        <div id="viewServices" class="view">
+          <section class="card">
+            <div class="section-head">
+              <h2>Servicios</h2>
+              <button id="refreshServicesBtn" class="btn ghost" aria-label="Actualizar servicios">Actualizar</button>
+            </div>
+            <form id="serviceForm" class="inline-form" aria-label="Agregar servicio">
+              <div class="form-field">
+                <label for="serviceName" class="sr-only">Nombre del servicio</label>
+                <input id="serviceName" name="name" placeholder="Nombre del servicio…" required autocomplete="off" />
+              </div>
+              <div class="form-field">
+                <label for="serviceDuration" class="sr-only">Duracion en minutos</label>
+                <input
+                  id="serviceDuration"
+                  name="durationMinutes"
+                  type="number"
+                  min="1"
+                  placeholder="Duracion (min)…"
+                  autocomplete="off"
+                  required
+                />
+              </div>
+              <div class="form-field">
+                <label for="servicePrice" class="sr-only">Precio</label>
+                <input id="servicePrice" name="price" type="number" step="0.01" min="0.01" placeholder="Precio…" autocomplete="off" required />
+              </div>
+              <button class="btn primary" type="submit">Agregar</button>
+            </form>
+            <div id="servicesList" class="list" aria-live="polite"></div>
+          </section>
+        </div>
+
+        <!-- Slots view -->
+        <div id="viewSlots" class="view">
+          <section class="card">
+            <div class="section-head">
+              <h2>Horarios</h2>
+              <div class="filters">
+                <label for="slotDayFilter" class="sr-only">Dia de la semana</label>
+                <select id="slotDayFilter" name="dayOfWeek" autocomplete="off">
+                  <option value="1">Lunes</option>
+                  <option value="2">Martes</option>
+                  <option value="3">Miercoles</option>
+                  <option value="4">Jueves</option>
+                  <option value="5">Viernes</option>
+                  <option value="6">Sabado</option>
+                  <option value="0">Domingo</option>
+                </select>
+                <button id="refreshSlotsBtn" class="btn ghost" aria-label="Actualizar horarios">Actualizar</button>
+              </div>
+            </div>
+            <form id="slotForm" class="inline-form" aria-label="Agregar horario">
+              <div class="form-field">
+                <label for="slotStart" class="sr-only">Hora de inicio</label>
+                <input id="slotStart" name="startTime" type="time" autocomplete="off" required />
+              </div>
+              <div class="form-field">
+                <label for="slotEnd" class="sr-only">Hora de fin</label>
+                <input id="slotEnd" name="endTime" type="time" autocomplete="off" required />
+              </div>
+              <div class="form-field">
+                <label for="slotMax" class="sr-only">Capacidad maxima</label>
+                <input id="slotMax" name="maxAppointments" type="number" min="1" value="1" autocomplete="off" required />
+              </div>
+              <button class="btn primary" type="submit">Agregar</button>
+            </form>
+            <div id="slotsList" class="list" aria-live="polite"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="/admin/app.js"></script>
+  </body>
+</html>
